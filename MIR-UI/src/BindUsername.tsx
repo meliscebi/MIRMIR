@@ -17,13 +17,13 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
 
   const handleBind = async () => {
     if (!username || username.length < 3) {
-      alert('Username en az 3 karakter olmalıdır');
+      alert('Username must be at least 3 characters');
       return;
     }
 
     // Username validation: only alphanumeric and underscore
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      alert('Username sadece harf, rakam ve alt çizgi içerebilir');
+      alert('Username can only contain letters, numbers and underscore');
       return;
     }
 
@@ -47,23 +47,23 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
         },
         {
           onSuccess: () => {
-            alert(`Username "${username}" başarıyla bağlandı! 🎉\n\nNot: Production'da ${username} ile erişebileceksiniz.\nŞimdilik NFT ID ile erişim kullanın.`);
+            alert(`Username "${username}" successfully bound! 🎉\n\nNote: In production you can access via /${username}.\nFor now, use NFT ID.`);
             onSuccess?.();
           },
           onError: (error) => {
-            console.error('Username bağlama hatası:', error);
+            console.error('Username binding error:', error);
             const errorMsg = error?.message || String(error);
             if (errorMsg.includes('EUsernameAlreadyTaken') || errorMsg.includes('already')) {
-              alert(`Username "${username}" zaten alınmış. Başka bir username deneyin.`);
+              alert(`Username "${username}" is already taken. Try a different username.`);
             } else {
-              alert('Username bağlanamadı: ' + errorMsg);
+              alert('Could not bind username: ' + errorMsg);
             }
           },
         }
       );
     } catch (error) {
       console.error('Error binding username:', error);
-      alert('Bir hata oluştu');
+      alert('An error occurred');
     } finally {
       setIsBinding(false);
     }
@@ -89,19 +89,19 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
         },
         {
           onSuccess: () => {
-            alert('Username bağlantısı kaldırıldı');
+            alert('Username binding removed');
             setUsername('');
             onSuccess?.();
           },
           onError: (error) => {
-            console.error('Username kaldırma hatası:', error);
-            alert('Username kaldırılamadı');
+            console.error('Username removal error:', error);
+            alert('Could not remove username');
           },
         }
       );
     } catch (error) {
       console.error('Error unbinding username:', error);
-      alert('Bir hata oluştu');
+      alert('An error occurred');
     } finally {
       setIsBinding(false);
     }
@@ -110,14 +110,14 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
   return (
     <Card>
       <Flex direction="column" gap="3">
-        <Heading size="4">🔗 Kısa Link (Username)</Heading>
+        <Heading size="4">🔗 Short Link (Username)</Heading>
         <Text size="2" color="gray">
-          NFT ID yerine kısa ve akılda kalıcı bir username kullanın
+          Use a short and memorable username instead of NFT ID
         </Text>
         
         {currentUsername && (
           <Text size="3" weight="bold" style={{ color: 'green' }}>
-            ✅ Mevcut username: <code>{currentUsername}</code>
+            ✅ Current username: <code>{currentUsername}</code>
             <br />
             <a href={`/${currentUsername}`} target="_blank" rel="noopener noreferrer">
               {window.location.origin}/{currentUsername}
@@ -126,7 +126,7 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
         )}
 
         <TextField.Root
-          placeholder="örnek: alice"
+          placeholder="e.g.: alice"
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
           disabled={isBinding}
@@ -138,7 +138,7 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
             disabled={!username || isBinding}
             style={{ flex: 1 }}
           >
-            {isBinding ? 'Bağlanıyor...' : currentUsername ? 'Güncelle' : 'Bağla'}
+            {isBinding ? 'Binding...' : currentUsername ? 'Update' : 'Bind'}
           </Button>
           
           {currentUsername && (
@@ -148,13 +148,13 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
               color="red"
               variant="soft"
             >
-              Kaldır
+              Remove
             </Button>
           )}
         </Flex>
 
         <Text size="1" color="gray">
-          💡 İpucu: Username benzersiz olmalı ve sadece harf, rakam ve alt çizgi (_) içerebilir
+          💡 Tip: Username must be unique and can only contain letters, numbers and underscore (_)
         </Text>
       </Flex>
     </Card>

@@ -18,37 +18,42 @@ export function LinktreePage({ nft }: LinktreePageProps) {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '87vh',
         backgroundColor: nft.backgroundColor,
-        padding: '2rem',
+        padding: '1rem',
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'flex-start',
+        paddingTop: '1rem',
       }}
     >
-      <div style={{ maxWidth: 680, width: '100%' }}>
-        <Flex direction="column" gap="4" align="center">
+      <div style={{ width: '100%', maxWidth: 'min(90vw, 800px)' }}>
+        <Flex direction="column" gap="1.2vh" align="center">
           {/* Avatar */}
           {nft.avatarUrl && (
             <Avatar
               src={nft.avatarUrl}
               fallback={nft.title.charAt(0)}
-              size="9"
+              size="7"
               radius="full"
               style={{
-                border: '4px solid white',
+                border: '2px solid white',
                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                width: '8vh',
+                height: '8vh',
               }}
             />
           )}
 
           {/* Başlık */}
           <Heading
-            size="8"
+            size="6"
             style={{
               color: nft.titleColor,
               textAlign: 'center',
               fontWeight: 'bold',
+              marginTop: '0.3vh',
+              fontSize: 'clamp(1.5rem, 3.5vh, 2.25rem)',
             }}
           >
             {nft.title}
@@ -57,11 +62,13 @@ export function LinktreePage({ nft }: LinktreePageProps) {
           {/* Biyografi */}
           {nft.bio && (
             <Text
-              size="4"
+              size="2"
               style={{
                 textAlign: 'center',
                 color: '#666',
-                maxWidth: 500,
+                maxWidth: '90%',
+                lineHeight: '1.4',
+                fontSize: 'clamp(1rem, 2.2vh, 1.125rem)',
               }}
             >
               {nft.bio}
@@ -69,7 +76,7 @@ export function LinktreePage({ nft }: LinktreePageProps) {
           )}
 
           {/* Linkler */}
-          <Flex direction="column" gap="3" style={{ width: '100%', marginTop: '1rem' }}>
+          <Flex direction="column" gap="1vh" style={{ width: '100%', marginTop: '0.8vh' }}>
             {nft.links.map((link, index) => (
               <Card
                 key={index}
@@ -88,27 +95,23 @@ export function LinktreePage({ nft }: LinktreePageProps) {
                 }}
                 onClick={() => handleLinkClick(link.url)}
               >
-                <Flex align="center" justify="center" gap="3" style={{ padding: '0.5rem' }}>
-                  <Text size="6">{link.icon}</Text>
-                  <Text size="4" weight="bold" style={{ flex: 1, textAlign: 'center' }}>
+                <Flex align="center" justify="center" gap="2" style={{ padding: '1vh 1rem' }}>
+                  <Text style={{ fontSize: 'clamp(1.25rem, 2.5vh, 1.5rem)' }}>{link.icon}</Text>
+                  <Text 
+                    size="3" 
+                    weight="bold" 
+                    style={{ 
+                      flex: 1, 
+                      textAlign: 'center',
+                      fontSize: 'clamp(1rem, 2.2vh, 1.125rem)',
+                    }}
+                  >
                     {link.title}
                   </Text>
                 </Flex>
               </Card>
             ))}
           </Flex>
-
-          {/* Footer - NFT Bilgisi */}
-          <Card style={{ marginTop: '2rem', backgroundColor: 'rgba(255, 255, 255, 0.8)' }}>
-            <Flex direction="column" gap="2" align="center">
-              <Text size="2" color="gray">
-                Bu sayfa bir Sui NFT ile oluşturulmuştur
-              </Text>
-              <Text size="1" color="gray" style={{ fontFamily: 'monospace' }}>
-                NFT ID: {nft.id.slice(0, 8)}...{nft.id.slice(-8)}
-              </Text>
-            </Flex>
-          </Card>
         </Flex>
       </div>
     </div>
