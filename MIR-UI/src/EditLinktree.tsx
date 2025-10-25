@@ -4,8 +4,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { Button, TextField, Flex, Card, Heading, Text, IconButton } from '@radix-ui/themes';
 import { TrashIcon, PlusIcon } from '@radix-ui/react-icons';
 import type { Link } from './types';
-
-const PACKAGE_ID = 'YOUR_PACKAGE_ID_HERE'; // Deploy sonrası güncellenecek
+import { LINKTREE_PACKAGE_ID } from './constants';
 
 interface EditLinktreeProps {
   nftId: string;
@@ -49,7 +48,7 @@ export function EditLinktree({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::update_title`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::update_title`,
         arguments: [
           tx.object(nftId),
           tx.pure.string(title),
@@ -83,7 +82,7 @@ export function EditLinktree({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::update_title_color`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::update_title_color`,
         arguments: [
           tx.object(nftId),
           tx.pure.string(titleColor),
@@ -117,7 +116,7 @@ export function EditLinktree({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::update_background_color`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::update_background_color`,
         arguments: [
           tx.object(nftId),
           tx.pure.string(backgroundColor),
@@ -151,7 +150,7 @@ export function EditLinktree({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::update_bio`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::update_bio`,
         arguments: [
           tx.object(nftId),
           tx.pure.string(bio),
@@ -185,7 +184,7 @@ export function EditLinktree({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::update_avatar`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::update_avatar`,
         arguments: [
           tx.object(nftId),
           tx.pure.string(avatarUrl),
@@ -224,7 +223,7 @@ export function EditLinktree({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::add_link`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::add_link`,
         arguments: [
           tx.object(nftId),
           tx.pure.string(newLinkTitle),
@@ -263,7 +262,7 @@ export function EditLinktree({
     try {
       const tx = new Transaction();
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::remove_link`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::remove_link`,
         arguments: [
           tx.object(nftId),
           tx.pure.u64(index),

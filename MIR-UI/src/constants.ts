@@ -1,3 +1,9 @@
+// Linktree Package IDs
+export const LINKTREE_PACKAGE_ID = "0xb1e96667befa89796a7c4e95068c2f5cc5a941d968d0602622887f11a4e214cc";
+export const SUINS_REGISTRY_ID = "0x82483b1b69f04c46999e0053958d6db6087f610cb06a53183dd9f0c277661846";
+export const USERNAME_REGISTRY_ID = "0xd2710aa8ec70bdc0eb202d733991325197cb405815bccd2f7194cac89b1b1cf1";
+
+// Legacy Counter Package IDs (for reference)
 export const DEVNET_COUNTER_PACKAGE_ID = "0xTODO";
 export const TESTNET_COUNTER_PACKAGE_ID = "0xTODO";
 export const MAINNET_COUNTER_PACKAGE_ID = "0xTODO";

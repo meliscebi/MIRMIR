@@ -13,4 +13,5 @@ export interface LinktreeNFT {
   avatarUrl: string;
   links: Link[];
   owner: string;
+  username?: string;
 }
