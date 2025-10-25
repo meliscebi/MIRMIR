@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { Button, TextField, Flex, Card, Heading, Text } from '@radix-ui/themes';
-
-const PACKAGE_ID = 'YOUR_PACKAGE_ID_HERE'; // Deploy sonrası güncellenecek
+import { LINKTREE_PACKAGE_ID } from './constants';
 
 interface CreateLinktreeProps {
   onSuccess?: (nftId: string) => void;
@@ -18,6 +17,7 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
   const [isCreating, setIsCreating] = useState(false);
 
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const suiClient = useSuiClient();
 
   const handleCreate = async () => {
     if (!title) {
@@ -31,7 +31,7 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
       const tx = new Transaction();
       
       tx.moveCall({
-        target: `${PACKAGE_ID}::linktree_nft::create_linktree`,
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::create_linktree`,
         arguments: [
           tx.pure.string(title),
           tx.pure.string(titleColor),
@@ -48,10 +48,35 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
         {
           onSuccess: async (result) => {
             console.log('Linktree NFT oluşturuldu:', result);
-            // NFT ID'yi digest'ten çekebiliriz
-            if (result.digest && onSuccess) {
-              onSuccess(result.digest);
+            
+            // Wait for transaction to get full details
+            try {
+              const txResult = await suiClient.waitForTransaction({
+                digest: result.digest,
+                options: {
+                  showEffects: true,
+                  showObjectChanges: true,
+                },
+              });
+              
+              console.log('Full transaction result:', txResult);
+              
+              // Find created LinktreeNFT object
+              const nftObject = txResult.objectChanges?.find(
+                (change: any) => 
+                  change.type === 'created' && 
+                  change.objectType?.includes('LinktreeNFT')
+              );
+              
+              if (nftObject && 'objectId' in nftObject && onSuccess) {
+                const nftId = nftObject.objectId;
+                console.log('Created NFT ID:', nftId);
+                onSuccess(nftId);
+              }
+            } catch (error) {
+              console.error('Error fetching transaction:', error);
             }
+            
             // Formu temizle
             setTitle('');
             setBio('');
