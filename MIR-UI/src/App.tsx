@@ -1,11 +1,12 @@
 import { ConnectButton, useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
 import { isValidSuiObjectId } from "@mysten/sui/utils";
-import { Box, Container, Flex, Heading, Tabs, Button, Text } from "@radix-ui/themes";
-import { useState, useEffect } from "react";
+import { Container, Flex, Heading, Button } from "@radix-ui/themes";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { CreateLinktree } from "./CreateLinktree";
-import { EditLinktree } from "./EditLinktree";
-import { LinktreePage } from "./LinktreePage";
-import { BindUsername } from "./BindUsername";
+import { MyLinktrees } from "./MyLinktrees";
+import { LandingPage } from "./LandingPage";
+import { NotFoundPage } from "./NotFoundPage";
+import { LinktreeEditor } from "./LinktreeEditor";
 import type { LinktreeNFT } from "./types";
 
 function App() {
@@ -21,15 +22,15 @@ function App() {
       return identifier;
     }
     
-    // Otherwise we'll need to resolve username (not yet implemented for dev)
     return null;
   });
-  const [viewMode, setViewMode] = useState<'view' | 'edit' | 'create'>(() => {
+  const [viewMode, setViewMode] = useState<'view' | 'edit' | 'create' | 'list'>(() => {
     const pathname = window.location.pathname.slice(1);
     const hash = window.location.hash.slice(1);
     const identifier = pathname || hash;
-    return isValidSuiObjectId(identifier) ? 'view' : 'create';
+    return isValidSuiObjectId(identifier) ? 'view' : 'list';
   });
+  const [routeError, setRouteError] = useState<string | null>(null);
 
   // Listen to hash changes
   useEffect(() => {
@@ -41,14 +42,16 @@ function App() {
       if (isValidSuiObjectId(identifier)) {
         setLinktreeId(identifier);
         setViewMode('view');
+        setRouteError(null);
       } else if (identifier) {
-        // Username entered - show message for now
-        alert(`Username routing (/${identifier}) henüz development modda desteklenmiyor.\n\nÜretim (production) ortamında çalışacak!\n\nŞimdilik NFT ID ile erişin: #${linktreeId || '0x...'}`);
+        // Invalid route - show 404
+        setRouteError(identifier);
         setLinktreeId(null);
-        setViewMode('create');
+        setViewMode('list');
       } else {
         setLinktreeId(null);
-        setViewMode('create');
+        setViewMode('list');
+        setRouteError(null);
       }
     };
 
@@ -73,29 +76,15 @@ function App() {
     }
   );
 
-  console.log('Query state:', { linktreeId, isLoading, hasData: !!nftData, error });
-  console.log('Raw NFT data:', nftData);
-  if (nftData?.error) {
-    console.error('NFT Data Error:', nftData.error);
-  }
-
-  // NFT verisini parse et
-  const parseNFTData = (): LinktreeNFT | null => {
-    // Check if data exists and is valid
-    if (!nftData) return null;
-    if (!nftData.data) return null;
-    if (!('content' in nftData.data)) return null;
+  // NFT verisini parse et - useMemo ile optimize edildi
+  const nft = useMemo((): LinktreeNFT | null => {
+    if (!nftData?.data || !('content' in nftData.data)) return null;
     
     const content = nftData.data.content as any;
     if (!content || content.dataType !== 'moveObject') return null;
 
     const fields = content.fields;
     if (!fields) return null;
-
-    console.log('NFT fields:', fields);
-    console.log('Username field:', fields.username);
-    console.log('Username type:', typeof fields.username);
-    console.log('Username vec:', fields.username?.vec);
 
     // Parse username - handle both string and Option<String> formats
     let username: string | undefined;
@@ -104,8 +93,6 @@ function App() {
     } else if (fields.username && typeof fields.username === 'object' && 'vec' in fields.username) {
       username = fields.username.vec[0];
     }
-
-    console.log('Parsed username:', username);
 
     return {
       id: fields.id.id,
@@ -118,20 +105,17 @@ function App() {
       owner: fields.owner || '',
       username: username,
     };
-  };
+  }, [nftData]);
 
-  const nft = parseNFTData();
-  console.log('Parsed NFT:', nft);
-
-  const handleNFTCreated = (id: string) => {
+  const handleNFTCreated = useCallback((id: string) => {
     window.location.hash = id;
     setLinktreeId(id);
     setViewMode('edit');
-  };
+  }, []);
 
-  const handleUpdate = () => {
+  const handleUpdate = useCallback(() => {
     refetch();
-  };
+  }, [refetch]);
 
   return (
     <>
@@ -140,93 +124,84 @@ function App() {
         px="4"
         py="2"
         justify="between"
+        align="center"
         style={{
           borderBottom: "1px solid var(--gray-a2)",
+          background: "var(--color-background)"
         }}
       >
-        <Box>
-          <Heading>🔗 Web3 Linktree - Sui NFT</Heading>
-        </Box>
+        <Heading style={{ cursor: 'pointer' }} onClick={() => {
+          window.location.hash = '';
+          setLinktreeId(null);
+          setViewMode('list');
+          setRouteError(null);
+        }}>
+          🔗 Web3 Linktree
+        </Heading>
 
-        <Box>
-          <ConnectButton />
-        </Box>
+        <ConnectButton />
       </Flex>
       <Container>
         <Container
           mt="5"
           pt="2"
           px="4"
-          style={{ background: "var(--gray-a2)", minHeight: 500 }}
+          style={{ minHeight: 500 }}
         >
-          {currentAccount ? (
+          {/* Show 404 if invalid route */}
+          {routeError ? (
+            <NotFoundPage 
+              identifier={routeError}
+              onGoHome={() => {
+                window.location.hash = '';
+                setLinktreeId(null);
+                setViewMode('list');
+                setRouteError(null);
+              }}
+            />
+          ) : linktreeId && nft ? (
+            // Show NFT - accessible by anyone (logged in or not)
+            <Flex direction="column" gap="4">
+              <LinktreeEditor
+                nft={nft}
+                nftId={linktreeId}
+                isOwner={currentAccount?.address === nft.owner}
+                onUpdate={handleUpdate}
+              />
+
+              {currentAccount && (
+                <Button
+                  variant="soft"
+                  onClick={() => {
+                    window.location.hash = '';
+                    setLinktreeId(null);
+                    setViewMode('list');
+                    setRouteError(null);
+                  }}
+                >
+                  ← Back to My Linktrees
+                </Button>
+              )}
+            </Flex>
+          ) : currentAccount ? (
+            // Logged in - show user's linktrees or create
             <>
-              {linktreeId && nft ? (
-                <Flex direction="column" gap="4">
-                  {/* Tab navigasyonu */}
-                  <Tabs.Root value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
-                    <Tabs.List>
-                      <Tabs.Trigger value="view">Görüntüle</Tabs.Trigger>
-                      <Tabs.Trigger value="edit">Düzenle</Tabs.Trigger>
-                    </Tabs.List>
-
-                    <Box pt="4">
-                      <Tabs.Content value="view">
-                        <LinktreePage nft={nft} />
-                      </Tabs.Content>
-
-                      <Tabs.Content value="edit">
-                        {currentAccount.address === nft.owner ? (
-                          <Flex direction="column" gap="4">
-                            <BindUsername
-                              nftId={linktreeId}
-                              currentUsername={nft.username}
-                              onSuccess={handleUpdate}
-                            />
-                            <EditLinktree
-                              nftId={linktreeId}
-                              currentTitle={nft.title}
-                              currentTitleColor={nft.titleColor}
-                              currentBackgroundColor={nft.backgroundColor}
-                              currentBio={nft.bio}
-                              currentAvatarUrl={nft.avatarUrl}
-                              currentLinks={nft.links}
-                              onUpdate={handleUpdate}
-                            />
-                          </Flex>
-                        ) : (
-                          <Text>Bu NFT'nin sahibi değilsiniz, düzenleyemezsiniz.</Text>
-                        )}
-                      </Tabs.Content>
-                    </Box>
-                  </Tabs.Root>
-
-                  <Button
-                    variant="soft"
-                    onClick={() => {
-                      window.location.hash = '';
-                      setLinktreeId(null);
-                      setViewMode('create');
-                    }}
-                  >
-                    Yeni Linktree Oluştur
-                  </Button>
-                </Flex>
-              ) : (
+              {viewMode === 'create' ? (
                 <CreateLinktree onSuccess={handleNFTCreated} />
+              ) : (
+                <MyLinktrees 
+                  onSelectLinktree={(id) => {
+                    window.location.hash = id;
+                    setLinktreeId(id);
+                    setViewMode('view');
+                  }}
+                  onCreateNew={() => setViewMode('create')}
+                />
               )}
             </>
           ) : (
-            <Flex direction="column" gap="4" align="center" justify="center" style={{ minHeight: 400 }}>
-              <Heading>🔗 Web3 Linktree'ye Hoş Geldiniz</Heading>
-              <Text size="4" align="center" style={{ maxWidth: 600 }}>
-                Sui blockchain üzerinde NFT tabanlı kişisel link sayfanızı oluşturun.
-                Her sayfa bir NFT'dir ve tamamen size aittir!
-              </Text>
-              <Text size="3" color="gray" align="center">
-                Başlamak için lütfen cüzdanınızı bağlayın
-              </Text>
-            </Flex>
+            // Not logged in - show landing page
+            <LandingPage />
           )}
         </Container>
       </Container>

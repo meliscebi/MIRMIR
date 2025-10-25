@@ -64,7 +64,7 @@ async function deployToWalrus() {
 
   // Step 4: Deploy to Walrus Sites
   log('\nStep 4: Deploying to Walrus Sites', 'yellow');
-  const deployCommand = 'walrus sites publish --config walrus-site.yaml dist/';
+  const deployCommand = 'walrus-sites publish --config walrus-site.yaml dist/';
   
   try {
     const output = execSync(deployCommand, { encoding: 'utf-8' });

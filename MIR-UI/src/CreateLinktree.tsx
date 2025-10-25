@@ -3,6 +3,7 @@ import { useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { Button, TextField, Flex, Card, Heading, Text } from '@radix-ui/themes';
 import { LINKTREE_PACKAGE_ID } from './constants';
+import { CloudinaryImageUpload } from './CloudinaryImageUpload';
 
 interface CreateLinktreeProps {
   onSuccess?: (nftId: string) => void;
@@ -21,7 +22,7 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
 
   const handleCreate = async () => {
     if (!title) {
-      alert('Lütfen bir başlık girin');
+      alert('Please enter a title');
       return;
     }
 
@@ -47,7 +48,7 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
         },
         {
           onSuccess: async (result) => {
-            console.log('Linktree NFT oluşturuldu:', result);
+            console.log('Linktree NFT created:', result);
             
             // Wait for transaction to get full details
             try {
@@ -77,22 +78,22 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
               console.error('Error fetching transaction:', error);
             }
             
-            // Formu temizle
+            // Clear form
             setTitle('');
             setBio('');
             setAvatarUrl('');
             setIsCreating(false);
           },
           onError: (error) => {
-            console.error('Hata:', error);
-            alert('Linktree oluşturulamadı: ' + error.message);
+            console.error('Error:', error);
+            alert('Could not create Linktree: ' + error.message);
             setIsCreating(false);
           },
         }
       );
     } catch (error) {
-      console.error('İşlem hatası:', error);
-      alert('Bir hata oluştu');
+      console.error('Transaction error:', error);
+      alert('An error occurred');
       setIsCreating(false);
     }
   };
@@ -100,19 +101,19 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
   return (
     <Card style={{ maxWidth: 600, margin: '0 auto' }}>
       <Flex direction="column" gap="4">
-        <Heading size="6">Yeni Linktree NFT Oluştur</Heading>
+        <Heading size="6">Create New Linktree NFT</Heading>
         
         <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Başlık *</Text>
+          <Text size="2" weight="bold">Title *</Text>
           <TextField.Root
-            placeholder="Adınız veya marka isminiz"
+            placeholder="Your name or brand"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
         </Flex>
 
         <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Başlık Rengi</Text>
+          <Text size="2" weight="bold">Title Color</Text>
           <Flex gap="2" align="center">
             <input
               type="color"
@@ -129,7 +130,7 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
         </Flex>
 
         <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Arkaplan Rengi</Text>
+          <Text size="2" weight="bold">Background Color</Text>
           <Flex gap="2" align="center">
             <input
               type="color"
@@ -146,20 +147,21 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
         </Flex>
 
         <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Biyografi</Text>
+          <Text size="2" weight="bold">Bio</Text>
           <TextField.Root
-            placeholder="Kısa bir açıklama yazın"
+            placeholder="Write a short description"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
           />
         </Flex>
 
         <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Avatar URL</Text>
-          <TextField.Root
-            placeholder="https://example.com/avatar.jpg"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
+          <Text size="2" weight="bold">Avatar Image</Text>
+          <CloudinaryImageUpload
+            currentImageUrl={avatarUrl}
+            onImageUploaded={(url) => setAvatarUrl(url)}
+            buttonText="Choose Avatar"
+            showPreview={true}
           />
         </Flex>
 
@@ -168,7 +170,7 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
           onClick={handleCreate}
           disabled={isCreating || !title}
         >
-          {isCreating ? 'Oluşturuluyor...' : 'Linktree NFT Oluştur'}
+          {isCreating ? 'Creating...' : 'Create Linktree NFT'}
         </Button>
       </Flex>
     </Card>

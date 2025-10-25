@@ -15,7 +15,7 @@ const { networkConfig, useNetworkVariable, useNetworkVariables } =
       },
     },
     testnet: {
-      url: getFullnodeUrl("testnet"),
+      url: "https://fullnode.testnet.sui.io:443",
       variables: {
         counterPackageId: TESTNET_COUNTER_PACKAGE_ID,
       },
