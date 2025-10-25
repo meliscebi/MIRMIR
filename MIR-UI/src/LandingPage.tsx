@@ -1,4 +1,5 @@
-import { Box, Container, Flex, Heading, Text, Grid, Card } from "@radix-ui/themes";
+import { Box, Container, Flex, Heading, Text, Grid, Card, Button } from "@radix-ui/themes";
+import { getGoogleAuthUrl, isZkLoginConfigured } from "./zkLoginSetup";
 
 export function LandingPage() {
   return (
@@ -21,9 +22,27 @@ export function LandingPage() {
             Create, customize, and own your link-in-bio page forever.
             Each page is a unique NFT that you truly own - no middleman, no fees.
           </Text>
-          <Text size="3" color="gray" mb="4">
-            👆 Connect your wallet above to get started
-          </Text>
+          
+          {isZkLoginConfigured() ? (
+            <Flex direction="column" gap="3" align="center">
+              <Text size="3" color="gray">
+                👆 Connect your wallet above, or
+              </Text>
+              <Button 
+                size="3"
+                variant="solid"
+                onClick={() => {
+                  window.location.href = getGoogleAuthUrl();
+                }}
+              >
+                🔐 Sign in with Google (No Wallet Needed)
+              </Button>
+            </Flex>
+          ) : (
+            <Text size="3" color="gray" mb="4">
+              👆 Connect your wallet above to get started
+            </Text>
+          )}
         </Box>
 
         {/* Features Grid */}

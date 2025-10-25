@@ -1,16 +1,32 @@
 import { ConnectButton, useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
 import { isValidSuiObjectId } from "@mysten/sui/utils";
-import { Container, Flex, Heading, Button } from "@radix-ui/themes";
+import { Container, Flex, Heading, Button, Text as RadixText } from "@radix-ui/themes";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { CreateLinktree } from "./CreateLinktree";
 import { MyLinktrees } from "./MyLinktrees";
 import { LandingPage } from "./LandingPage";
 import { NotFoundPage } from "./NotFoundPage";
 import { LinktreeEditor } from "./LinktreeEditor";
+import { AuthCallback } from "./AuthCallback";
+import { getGoogleAuthUrl, isZkLoginConfigured } from "./zkLoginSetup";
 import type { LinktreeNFT } from "./types";
 
 function App() {
   const currentAccount = useCurrentAccount();
+  const [zkLoginUser, setZkLoginUser] = useState<any>(null);
+  
+  // Check for zkLogin user on mount
+  useEffect(() => {
+    const userStr = localStorage.getItem('zklogin_user');
+    if (userStr) {
+      try {
+        setZkLoginUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error('Failed to parse zkLogin user:', e);
+      }
+    }
+  }, []);
+  
   const [linktreeId, setLinktreeId] = useState<string | null>(() => {
     // Check both pathname and hash for identifier
     const pathname = window.location.pathname.slice(1); // Remove leading /
@@ -39,6 +55,12 @@ function App() {
       const hash = window.location.hash.slice(1);
       const identifier = pathname || hash;
       
+      // Check for auth callback
+      if (identifier.includes('id_token=')) {
+        // This is an auth callback, don't change routes
+        return;
+      }
+      
       if (isValidSuiObjectId(identifier)) {
         setLinktreeId(identifier);
         setViewMode('view');
@@ -62,7 +84,7 @@ function App() {
   }, [linktreeId]);
 
   // NFT verisini çek
-  const { data: nftData, refetch, isLoading, error } = useSuiClientQuery(
+  const { data: nftData, refetch } = useSuiClientQuery(
     'getObject',
     {
       id: linktreeId!,
@@ -139,7 +161,47 @@ function App() {
           🔗 Web3 Linktree
         </Heading>
 
-        <ConnectButton />
+        <Flex gap="2" align="center">
+          {/* zkLogin button if configured */}
+          {isZkLoginConfigured() && !currentAccount && !zkLoginUser && (
+            <Button 
+              variant="soft"
+              onClick={() => {
+                window.location.href = getGoogleAuthUrl();
+              }}
+            >
+              🔐 Sign in with Google
+            </Button>
+          )}
+          
+          {/* Show zkLogin user info */}
+          {zkLoginUser && !currentAccount && (
+            <Flex gap="2" align="center">
+              {zkLoginUser.picture && (
+                <img 
+                  src={zkLoginUser.picture} 
+                  alt={zkLoginUser.name}
+                  style={{ width: 32, height: 32, borderRadius: '50%' }}
+                />
+              )}
+              <RadixText size="2">{zkLoginUser.name}</RadixText>
+              <Button
+                variant="soft"
+                size="1"
+                color="red"
+                onClick={() => {
+                  localStorage.removeItem('zklogin_token');
+                  localStorage.removeItem('zklogin_user');
+                  setZkLoginUser(null);
+                }}
+              >
+                Sign Out
+              </Button>
+            </Flex>
+          )}
+          
+          <ConnectButton />
+        </Flex>
       </Flex>
       <Container>
         <Container
@@ -148,8 +210,11 @@ function App() {
           px="4"
           style={{ minHeight: 500 }}
         >
-          {/* Show 404 if invalid route */}
-          {routeError ? (
+          {/* Check if this is an auth callback */}
+          {window.location.hash.includes('id_token=') ? (
+            <AuthCallback />
+          ) : /* Show 404 if invalid route */
+          routeError ? (
             <NotFoundPage 
               identifier={routeError}
               onGoHome={() => {
