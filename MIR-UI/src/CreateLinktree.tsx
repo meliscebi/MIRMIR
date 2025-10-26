@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
+import { useSignAndExecuteTransaction, useCurrentAccount } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { Button, TextField, Flex, Card, Heading, Text } from '@radix-ui/themes';
 import { LINKTREE_PACKAGE_ID } from './constants';
@@ -12,17 +12,23 @@ interface CreateLinktreeProps {
 export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
   const [title, setTitle] = useState('');
   const [titleColor, setTitleColor] = useState('#000000');
+  const [textColor, setTextColor] = useState('#000000');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
-  const suiClient = useSuiClient();
+  const currentAccount = useCurrentAccount();
 
   const handleCreate = async () => {
     if (!title) {
       alert('Please enter a title');
+      return;
+    }
+    
+    if (!currentAccount) {
+      alert('Please connect your wallet first');
       return;
     }
 
@@ -31,11 +37,13 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
     try {
       const tx = new Transaction();
       
+      // Normal wallet transaction
       tx.moveCall({
         target: `${LINKTREE_PACKAGE_ID}::linktree_nft::create_linktree`,
         arguments: [
           tx.pure.string(title),
           tx.pure.string(titleColor),
+          tx.pure.string(textColor),
           tx.pure.string(backgroundColor),
           tx.pure.string(bio),
           tx.pure.string(avatarUrl),
@@ -47,35 +55,16 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
           transaction: tx,
         },
         {
-          onSuccess: async (result) => {
-            console.log('Linktree NFT created:', result);
+          onSuccess: (result) => {
+            console.log('Linktree created:', result);
             
-            // Wait for transaction to get full details
-            try {
-              const txResult = await suiClient.waitForTransaction({
-                digest: result.digest,
-                options: {
-                  showEffects: true,
-                  showObjectChanges: true,
-                },
-              });
-              
-              console.log('Full transaction result:', txResult);
-              
-              // Find created LinktreeNFT object
-              const nftObject = txResult.objectChanges?.find(
-                (change: any) => 
-                  change.type === 'created' && 
-                  change.objectType?.includes('LinktreeNFT')
-              );
-              
-              if (nftObject && 'objectId' in nftObject && onSuccess) {
-                const nftId = nftObject.objectId;
-                console.log('Created NFT ID:', nftId);
-                onSuccess(nftId);
-              }
-            } catch (error) {
-              console.error('Error fetching transaction:', error);
+            // Try to get NFT ID from events or wait for transaction
+            if (onSuccess && result.digest) {
+              // We'll use a timeout to let the transaction settle
+              setTimeout(() => {
+                alert('✅ Linktree created successfully! Refreshing...');
+                window.location.reload();
+              }, 1000);
             }
             
             // Clear form
@@ -85,8 +74,8 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
             setIsCreating(false);
           },
           onError: (error) => {
-            console.error('Error:', error);
-            alert('Could not create Linktree: ' + error.message);
+            console.error('Error creating linktree:', error);
+            alert('Failed to create linktree: ' + error.message);
             setIsCreating(false);
           },
         }
@@ -99,80 +88,106 @@ export function CreateLinktree({ onSuccess }: CreateLinktreeProps) {
   };
 
   return (
-    <Card style={{ maxWidth: 600, margin: '0 auto' }}>
-      <Flex direction="column" gap="4">
-        <Heading size="6">Create New Linktree NFT</Heading>
-        
-        <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Title *</Text>
-          <TextField.Root
-            placeholder="Your name or brand"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </Flex>
+    <Flex direction="column" gap="4">
+      <Card>
+        <Heading size="6" mb="4">
+          ✨ Create Your Linktree
+        </Heading>
 
-        <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Title Color</Text>
-          <Flex gap="2" align="center">
-            <input
-              type="color"
-              value={titleColor}
-              onChange={(e) => setTitleColor(e.target.value)}
-              style={{ width: 50, height: 40, cursor: 'pointer' }}
-            />
+        <Flex direction="column" gap="3">
+          <label>
+            <Text as="div" size="2" mb="1" weight="bold">
+              Title *
+            </Text>
             <TextField.Root
-              value={titleColor}
-              onChange={(e) => setTitleColor(e.target.value)}
-              placeholder="#000000"
+              placeholder="My Linktree"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
             />
-          </Flex>
-        </Flex>
+          </label>
 
-        <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Background Color</Text>
-          <Flex gap="2" align="center">
-            <input
-              type="color"
-              value={backgroundColor}
-              onChange={(e) => setBackgroundColor(e.target.value)}
-              style={{ width: 50, height: 40, cursor: 'pointer' }}
-            />
+          <label>
+            <Text as="div" size="2" mb="1" weight="bold">
+              Bio
+            </Text>
             <TextField.Root
-              value={backgroundColor}
-              onChange={(e) => setBackgroundColor(e.target.value)}
-              placeholder="#ffffff"
+              placeholder="Tell us about yourself..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
             />
+          </label>
+
+          <label>
+            <Text as="div" size="2" mb="1" weight="bold">
+              Avatar URL
+            </Text>
+            <CloudinaryImageUpload
+              currentImageUrl={avatarUrl}
+              onImageUploaded={setAvatarUrl}
+              buttonText="Upload Avatar"
+            />
+            {avatarUrl && (
+              <img
+                src={avatarUrl}
+                alt="Avatar preview"
+                style={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  marginTop: 8,
+                }}
+              />
+            )}
+          </label>
+
+          <Flex gap="3">
+            <label style={{ flex: 1 }}>
+              <Text as="div" size="2" mb="1" weight="bold">
+                Title Color
+              </Text>
+              <input
+                type="color"
+                value={titleColor}
+                onChange={(e) => setTitleColor(e.target.value)}
+                style={{ width: '100%', height: 40, cursor: 'pointer' }}
+              />
+            </label>
+
+            <label style={{ flex: 1 }}>
+              <Text as="div" size="2" mb="1" weight="bold">
+                Text Color
+              </Text>
+              <input
+                type="color"
+                value={textColor}
+                onChange={(e) => setTextColor(e.target.value)}
+                style={{ width: '100%', height: 40, cursor: 'pointer' }}
+              />
+            </label>
+
+            <label style={{ flex: 1 }}>
+              <Text as="div" size="2" mb="1" weight="bold">
+                Background Color
+              </Text>
+              <input
+                type="color"
+                value={backgroundColor}
+                onChange={(e) => setBackgroundColor(e.target.value)}
+                style={{ width: '100%', height: 40, cursor: 'pointer' }}
+              />
+            </label>
           </Flex>
-        </Flex>
 
-        <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Bio</Text>
-          <TextField.Root
-            placeholder="Write a short description"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-          />
+          <Button
+            size="3"
+            onClick={handleCreate}
+            disabled={isCreating || !currentAccount}
+          >
+            {isCreating ? '⏳ Creating...' : '✨ Create Linktree'}
+          </Button>
         </Flex>
-
-        <Flex direction="column" gap="2">
-          <Text size="2" weight="bold">Avatar Image</Text>
-          <CloudinaryImageUpload
-            currentImageUrl={avatarUrl}
-            onImageUploaded={(url) => setAvatarUrl(url)}
-            buttonText="Choose Avatar"
-            showPreview={true}
-          />
-        </Flex>
-
-        <Button
-          size="3"
-          onClick={handleCreate}
-          disabled={isCreating || !title}
-        >
-          {isCreating ? 'Creating...' : 'Create Linktree NFT'}
-        </Button>
-      </Flex>
-    </Card>
+      </Card>
+    </Flex>
   );
 }

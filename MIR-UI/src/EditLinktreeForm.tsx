@@ -3,7 +3,7 @@ import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { Button, TextField, Flex, Card, Heading, Text, IconButton, Box } from '@radix-ui/themes';
 import { TrashIcon, PlusIcon } from '@radix-ui/react-icons';
-import type { Link } from './types';
+import type { Link, LinkInput } from './types';
 import { LINKTREE_PACKAGE_ID } from './constants';
 import { CloudinaryImageUpload } from './CloudinaryImageUpload';
 
@@ -11,6 +11,7 @@ interface EditLinktreeFormProps {
   nftId: string;
   currentTitle: string;
   currentTitleColor: string;
+  currentTextColor: string;
   currentBackgroundColor: string;
   currentBio: string;
   currentAvatarUrl: string;
@@ -19,10 +20,11 @@ interface EditLinktreeFormProps {
   onLivePreview?: (data: {
     title: string;
     titleColor: string;
+    textColor: string;
     backgroundColor: string;
     bio: string;
     avatarUrl: string;
-    links: Link[];
+    links: LinkInput[];
   }) => void;
 }
 
@@ -30,6 +32,7 @@ export function EditLinktreeForm({
   nftId,
   currentTitle,
   currentTitleColor,
+  currentTextColor,
   currentBackgroundColor,
   currentBio,
   currentAvatarUrl,
@@ -39,10 +42,20 @@ export function EditLinktreeForm({
 }: EditLinktreeFormProps) {
   const [title, setTitle] = useState(currentTitle);
   const [titleColor, setTitleColor] = useState(currentTitleColor);
+  const [textColor, setTextColor] = useState(currentTextColor);
   const [backgroundColor, setBackgroundColor] = useState(currentBackgroundColor);
   const [bio, setBio] = useState(currentBio);
   const [avatarUrl, setAvatarUrl] = useState(currentAvatarUrl);
-  const [links, setLinks] = useState<Link[]>(currentLinks);
+  
+  // Convert currentLinks from Link[] to LinkInput[]
+  const [links, setLinks] = useState<LinkInput[]>(
+    currentLinks.map(link => ({
+      title: link.fields.title,
+      url: link.fields.url,
+      icon: link.fields.icon,
+    }))
+  );
+  
   const [isSaving, setIsSaving] = useState(false);
 
   // New link input states
@@ -58,13 +71,14 @@ export function EditLinktreeForm({
       onLivePreview({
         title,
         titleColor,
+        textColor,
         backgroundColor,
         bio,
         avatarUrl,
         links,
       });
     }
-  }, [title, titleColor, backgroundColor, bio, avatarUrl, links, onLivePreview]);
+  }, [title, titleColor, textColor, backgroundColor, bio, avatarUrl, links, onLivePreview]);
 
   const handleAddLink = () => {
     if (!newLinkTitle || !newLinkUrl) {
@@ -72,7 +86,7 @@ export function EditLinktreeForm({
       return;
     }
 
-    const newLink: Link = {
+    const newLink: LinkInput = {
       title: newLinkTitle,
       url: newLinkUrl,
       icon: newLinkIcon,
@@ -109,6 +123,12 @@ export function EditLinktreeForm({
       tx.moveCall({
         target: `${LINKTREE_PACKAGE_ID}::linktree_nft::update_title_color`,
         arguments: [tx.object(nftId), tx.pure.string(titleColor)],
+      });
+
+      // Update text color
+      tx.moveCall({
+        target: `${LINKTREE_PACKAGE_ID}::linktree_nft::update_text_color`,
+        arguments: [tx.object(nftId), tx.pure.string(textColor)],
       });
 
       // Update background color
@@ -150,6 +170,7 @@ export function EditLinktreeForm({
         });
       });
 
+      // Use wallet
       signAndExecute(
         { transaction: tx },
         {
@@ -201,6 +222,24 @@ export function EditLinktreeForm({
               value={titleColor}
               onChange={(e) => setTitleColor(e.target.value)}
               placeholder="#000000"
+            />
+          </Flex>
+        </Flex>
+
+        {/* Text Color */}
+        <Flex direction="column" gap="2">
+          <Text size="2" weight="bold">Text Color</Text>
+          <Flex gap="2" align="center">
+            <input
+              type="color"
+              value={textColor}
+              onChange={(e) => setTextColor(e.target.value)}
+              style={{ width: 50, height: 40, cursor: 'pointer', border: 'none' }}
+            />
+            <TextField.Root
+              value={textColor}
+              onChange={(e) => setTextColor(e.target.value)}
+              placeholder="#2D2A26"
             />
           </Flex>
         </Flex>
