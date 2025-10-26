@@ -36,6 +36,26 @@ function executeCommand(command, description) {
   }
 }
 
+async function deployWithRetry(command, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      log(`\n📤 Deployment attempt ${attempt}/${maxRetries}...`, 'cyan');
+      const output = execSync(command, { encoding: 'utf-8', timeout: 300000 }); // 5 minute timeout
+      return output;
+    } catch (error) {
+      const errorMessage = error.message || '';
+      
+      if (attempt < maxRetries && (errorMessage.includes('504') || errorMessage.includes('timeout') || errorMessage.includes('ECONNRESET'))) {
+        const waitTime = Math.pow(2, attempt - 1) * 5; // Exponential backoff: 5s, 10s, 20s
+        log(`⏳ Attempt ${attempt} failed with temporary error. Waiting ${waitTime}s before retry...`, 'yellow');
+        await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 async function deployToWalrus() {
   log('\n🚀 Starting Walrus Sites Deployment\n', 'cyan');
 
@@ -62,19 +82,19 @@ async function deployToWalrus() {
     process.exit(1);
   }
 
-  // Step 4: Deploy to Walrus Sites
+  // Step 4: Deploy to Walrus Sites with retry logic
   log('\nStep 4: Deploying to Walrus Sites', 'yellow');
-  const deployCommand = 'walrus-sites publish --config walrus-site.yaml dist/';
+  const deployCommand = 'site-builder --config ../walrus-site.yaml deploy ./dist --epochs 1';
   
   try {
-    const output = execSync(deployCommand, { encoding: 'utf-8' });
+    const output = await deployWithRetry(deployCommand, 3);
     log('✅ Deployment successful!', 'green');
     
-    // Parse the output to extract the site URL
-    const urlMatch = output.match(/https?:\/\/[^\s]+/);
+    // Parse the output to extract the site URL or blob ID
+    const urlMatch = output.match(/https?:\/\/[^\s]+/) || output.match(/[0-9a-f]{32,}/);
     if (urlMatch) {
       const siteUrl = urlMatch[0];
-      log(`\n🌐 Your site is live at: ${siteUrl}`, 'green');
+      log(`\n🌐 Your site is deployed: ${siteUrl}`, 'green');
       
       // Save the URL to a file for reference
       writeFileSync('DEPLOYED_URL.txt', siteUrl);
@@ -83,8 +103,13 @@ async function deployToWalrus() {
     
     log('\n✨ Deployment complete!', 'green');
   } catch (error) {
-    log('❌ Deployment failed', 'red');
+    log('❌ Deployment failed after retries', 'red');
     console.error(error.message);
+    log('\n💡 Troubleshooting tips:', 'yellow');
+    log('1. Check your internet connection', 'cyan');
+    log('2. Verify Walrus network status', 'cyan');
+    log('3. Try again in a few moments', 'cyan');
+    log('4. Run: site-builder --config ../walrus-site.yaml deploy ./dist --epochs 1', 'cyan');
     process.exit(1);
   }
 

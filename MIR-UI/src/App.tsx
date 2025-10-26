@@ -1,16 +1,19 @@
-import { ConnectButton, useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
+import { ConnectButton, useCurrentAccount, useSuiClientQuery, useSuiClient } from "@mysten/dapp-kit";
 import { isValidSuiObjectId } from "@mysten/sui/utils";
-import { Container, Flex, Heading } from "@radix-ui/themes";
+import { Container, Flex, Heading, Button } from "@radix-ui/themes";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { MyLinktrees } from "./MyLinktrees";
 import { LandingPage } from "./LandingPage";
 import { NotFoundPage } from "./NotFoundPage";
 import { LinktreeEditor } from "./LinktreeEditor";
 import { MobileLinktreeView } from "./MobileLinktreeView";
+import { CreateLinktree } from "./CreateLinktree";
+import { resolveUsernameToNFT, isUsername } from "./UsernameResolver";
 import type { LinktreeNFT } from "./types";
 
 function App() {
   const currentAccount = useCurrentAccount();
+  const suiClient = useSuiClient();
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile device
@@ -24,30 +27,54 @@ function App() {
   }, []);
   
   const [linktreeId, setLinktreeId] = useState<string | null>(() => {
-    // Check both pathname and hash for identifier
-    const pathname = window.location.pathname.slice(1); // Remove leading /
-    const hash = window.location.hash.slice(1);
-    const identifier = pathname || hash;
+    // Use hash-based routing for Walrus SPA compatibility
+    const hash = window.location.hash.slice(1); // Remove leading #
+    const identifier = hash;
     
-    // If it's a valid object ID, use it
+    // If it's a valid object ID, use it directly
     if (isValidSuiObjectId(identifier)) {
       return identifier;
+    }
+    
+    // If it's a username, we'll resolve it in the effect
+    if (isUsername(identifier)) {
+      return null; // Will be resolved in effect
     }
     
     return null;
   });
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
-  // Listen to hash changes
+  // Listen to hash/pathname changes and resolve username if needed
   useEffect(() => {
-    const handleHashChange = () => {
-      const pathname = window.location.pathname.slice(1);
+    const handleNavigation = async () => {
+      // Use hash-based routing for Walrus SPA compatibility
       const hash = window.location.hash.slice(1);
-      const identifier = pathname || hash;
+      const identifier = hash;
+      
+      console.log("[App] Navigation handler - identifier:", identifier);
       
       if (isValidSuiObjectId(identifier)) {
         setLinktreeId(identifier);
         setRouteError(null);
+      } else if (isUsername(identifier)) {
+        // Resolve username to NFT ID using DynamicField
+        console.log("[App] Username detected, resolving:", identifier);
+        try {
+          const nftId = await resolveUsernameToNFT(suiClient, identifier);
+          if (nftId) {
+            setLinktreeId(nftId);
+            setRouteError(null);
+          } else {
+            setRouteError(identifier);
+            setLinktreeId(null);
+          }
+        } catch (error) {
+          console.error("Error resolving username:", error);
+          setRouteError(identifier);
+          setLinktreeId(null);
+        }
       } else if (identifier) {
         // Invalid route - show 404
         setRouteError(identifier);
@@ -58,11 +85,11 @@ function App() {
       }
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange();
+    window.addEventListener('hashchange', handleNavigation);
+    handleNavigation();
     
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [linktreeId]);
+    return () => window.removeEventListener('hashchange', handleNavigation);
+  }, [suiClient]);
 
   // NFT verisini çek
   const { data: nftData, refetch } = useSuiClientQuery(
@@ -174,16 +201,41 @@ function App() {
               />
             )
           ) : currentAccount ? (
-            // Logged in with wallet - show user's linktrees
-            <MyLinktrees 
-              onSelectLinktree={(id) => {
-                window.location.hash = id;
-                setLinktreeId(id);
-              }}
-            />
+            // Logged in with wallet - show user's linktrees or create modal
+            isCreating ? (
+              <Flex direction="column" gap="4">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setIsCreating(false)}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  ← Back to My Linktrees
+                </Button>
+                <CreateLinktree 
+                  onSuccess={() => {
+                    setIsCreating(false);
+                  }}
+                />
+              </Flex>
+            ) : (
+              <MyLinktrees 
+                onSelectLinktree={(id) => {
+                  window.location.hash = id;
+                  setLinktreeId(id);
+                }}
+                onCreateClick={() => setIsCreating(true)}
+              />
+            )
           ) : (
             // Not logged in - show landing page
-            <LandingPage />
+            <LandingPage onConnectClick={() => {
+              // Find the ConnectButton and click it
+              const buttons = Array.from(document.querySelectorAll('button'));
+              const connectBtn = buttons.find(btn => 
+                btn.textContent?.includes('Connect') || btn.textContent?.includes('connect')
+              );
+              connectBtn?.click();
+            }} />
           )}
         </Container>
       </Container>

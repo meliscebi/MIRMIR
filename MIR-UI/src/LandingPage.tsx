@@ -1,6 +1,10 @@
 import { Box, Container, Flex, Heading, Text, Grid, Card, Button, Badge, Separator } from "@radix-ui/themes";
 
-export function LandingPage() {
+interface LandingPageProps {
+  onConnectClick?: () => void;
+}
+
+export function LandingPage({ onConnectClick }: LandingPageProps) {
   return (
     <Box>
       {/* Hero Section - Full Width */}
@@ -92,19 +96,19 @@ export function LandingPage() {
                 boxShadow: '0 10px 40px var(--violet-a7)',
                 minWidth: '260px'
               }}
-              onClick={(event) => {
-                // Find and click the Sui Connect button
-                const buttons = Array.from(document.querySelectorAll('button'));
-                const walletButton = buttons.find(btn => 
-                  btn.textContent?.includes('Connect') && 
-                  btn !== event.currentTarget
+              onClick={() => {
+                // Try to find and click the ConnectButton
+                const connectBtns = Array.from(document.querySelectorAll('button')).filter(btn => 
+                  btn.textContent?.includes('Connect') || btn.textContent?.includes('connect')
                 );
-                if (walletButton) {
-                  walletButton.click();
+                if (connectBtns.length > 0) {
+                  connectBtns[0].click();
+                } else if (onConnectClick) {
+                  onConnectClick();
                 }
               }}
             >
-              � Connect Wallet to Start
+              Connect Wallet to Start
             </Button>
             <Text size="2" style={{ color: '#64748b' }}>
               Connect your wallet to get started
@@ -776,15 +780,15 @@ export function LandingPage() {
                   cursor: 'pointer',
                   boxShadow: '0 8px 32px var(--violet-a7)'
                 }}
-                onClick={(event) => {
-                  // Find and click the Sui Connect button
-                  const buttons = Array.from(document.querySelectorAll('button'));
-                  const walletButton = buttons.find(btn => 
-                    btn.textContent?.includes('Connect') && 
-                    btn !== event.currentTarget
+                onClick={() => {
+                  // Try to find and click the ConnectButton
+                  const connectBtns = Array.from(document.querySelectorAll('button')).filter(btn => 
+                    btn.textContent?.includes('Connect') || btn.textContent?.includes('connect')
                   );
-                  if (walletButton) {
-                    walletButton.click();
+                  if (connectBtns.length > 0) {
+                    connectBtns[0].click();
+                  } else if (onConnectClick) {
+                    onConnectClick();
                   }
                 }}
               >

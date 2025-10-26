@@ -9,9 +9,10 @@ import type { LinktreeNFT } from "./types";
 
 interface MyLinktreesProps {
   onSelectLinktree: (id: string) => void;
+  onCreateClick?: () => void;
 }
 
-const MyLinktreesComponent = ({ onSelectLinktree }: MyLinktreesProps) => {
+const MyLinktreesComponent = ({ onSelectLinktree, onCreateClick }: MyLinktreesProps) => {
   const currentAccount = useCurrentAccount();
   const ownerAddress = currentAccount?.address;
   
@@ -81,7 +82,13 @@ const MyLinktreesComponent = ({ onSelectLinktree }: MyLinktreesProps) => {
             Create your personalized link page as an NFT on Sui blockchain.
             Each page is a unique NFT that belongs entirely to you!
           </Text>
-          <Button size="3" onClick={() => setShowCreateModal(true)}>
+          <Button size="3" onClick={() => {
+            if (onCreateClick) {
+              onCreateClick();
+            } else {
+              setShowCreateModal(true);
+            }
+          }}>
             Create Your First Linktree
           </Button>
         </Flex>
@@ -93,7 +100,13 @@ const MyLinktreesComponent = ({ onSelectLinktree }: MyLinktreesProps) => {
     <Flex direction="column" gap="4">
       <Flex justify="between" align="center">
         <Heading size="6">Your Linktrees</Heading>
-        <Button variant="soft" onClick={() => setShowCreateModal(true)}>
+        <Button variant="soft" onClick={() => {
+          if (onCreateClick) {
+            onCreateClick();
+          } else {
+            setShowCreateModal(true);
+          }
+        }}>
           Create New
         </Button>
       </Flex>
