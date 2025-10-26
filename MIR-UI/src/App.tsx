@@ -1,30 +1,26 @@
 import { ConnectButton, useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
 import { isValidSuiObjectId } from "@mysten/sui/utils";
-import { Container, Flex, Heading, Button, Text as RadixText } from "@radix-ui/themes";
+import { Container, Flex, Heading } from "@radix-ui/themes";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { CreateLinktree } from "./CreateLinktree";
 import { MyLinktrees } from "./MyLinktrees";
 import { LandingPage } from "./LandingPage";
 import { NotFoundPage } from "./NotFoundPage";
 import { LinktreeEditor } from "./LinktreeEditor";
-import { AuthCallback } from "./AuthCallback";
-import { getGoogleAuthUrl, isZkLoginConfigured } from "./zkLoginSetup";
+import { MobileLinktreeView } from "./MobileLinktreeView";
 import type { LinktreeNFT } from "./types";
 
 function App() {
   const currentAccount = useCurrentAccount();
-  const [zkLoginUser, setZkLoginUser] = useState<any>(null);
-  
-  // Check for zkLogin user on mount
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device
   useEffect(() => {
-    const userStr = localStorage.getItem('zklogin_user');
-    if (userStr) {
-      try {
-        setZkLoginUser(JSON.parse(userStr));
-      } catch (e) {
-        console.error('Failed to parse zkLogin user:', e);
-      }
-    }
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
   const [linktreeId, setLinktreeId] = useState<string | null>(() => {
@@ -40,12 +36,6 @@ function App() {
     
     return null;
   });
-  const [viewMode, setViewMode] = useState<'view' | 'edit' | 'create' | 'list'>(() => {
-    const pathname = window.location.pathname.slice(1);
-    const hash = window.location.hash.slice(1);
-    const identifier = pathname || hash;
-    return isValidSuiObjectId(identifier) ? 'view' : 'list';
-  });
   const [routeError, setRouteError] = useState<string | null>(null);
 
   // Listen to hash changes
@@ -55,24 +45,15 @@ function App() {
       const hash = window.location.hash.slice(1);
       const identifier = pathname || hash;
       
-      // Check for auth callback
-      if (identifier.includes('id_token=')) {
-        // This is an auth callback, don't change routes
-        return;
-      }
-      
       if (isValidSuiObjectId(identifier)) {
         setLinktreeId(identifier);
-        setViewMode('view');
         setRouteError(null);
       } else if (identifier) {
         // Invalid route - show 404
         setRouteError(identifier);
         setLinktreeId(null);
-        setViewMode('list');
       } else {
         setLinktreeId(null);
-        setViewMode('list');
         setRouteError(null);
       }
     };
@@ -120,20 +101,16 @@ function App() {
       id: fields.id.id,
       title: fields.title || '',
       titleColor: fields.title_color || '#000000',
+      textColor: fields.text_color || '#2D2A26',
       backgroundColor: fields.background_color || '#ffffff',
       bio: fields.bio || '',
       avatarUrl: fields.avatar_url || '',
       links: fields.links || [],
+      walletAddresses: fields.wallet_addresses || [],
       owner: fields.owner || '',
       username: username,
     };
   }, [nftData]);
-
-  const handleNFTCreated = useCallback((id: string) => {
-    window.location.hash = id;
-    setLinktreeId(id);
-    setViewMode('edit');
-  }, []);
 
   const handleUpdate = useCallback(() => {
     refetch();
@@ -155,51 +132,13 @@ function App() {
         <Heading style={{ cursor: 'pointer' }} onClick={() => {
           window.location.hash = '';
           setLinktreeId(null);
-          setViewMode('list');
           setRouteError(null);
         }}>
-          🔗 Web3 Linktree
+          🔗 MIRMIR
         </Heading>
 
         <Flex gap="2" align="center">
-          {/* zkLogin button if configured */}
-          {isZkLoginConfigured() && !currentAccount && !zkLoginUser && (
-            <Button 
-              variant="soft"
-              onClick={() => {
-                window.location.href = getGoogleAuthUrl();
-              }}
-            >
-              🔐 Sign in with Google
-            </Button>
-          )}
-          
-          {/* Show zkLogin user info */}
-          {zkLoginUser && !currentAccount && (
-            <Flex gap="2" align="center">
-              {zkLoginUser.picture && (
-                <img 
-                  src={zkLoginUser.picture} 
-                  alt={zkLoginUser.name}
-                  style={{ width: 32, height: 32, borderRadius: '50%' }}
-                />
-              )}
-              <RadixText size="2">{zkLoginUser.name}</RadixText>
-              <Button
-                variant="soft"
-                size="1"
-                color="red"
-                onClick={() => {
-                  localStorage.removeItem('zklogin_token');
-                  localStorage.removeItem('zklogin_user');
-                  setZkLoginUser(null);
-                }}
-              >
-                Sign Out
-              </Button>
-            </Flex>
-          )}
-          
+          {/* Standard wallet connect button */}
           <ConnectButton />
         </Flex>
       </Flex>
@@ -211,59 +150,37 @@ function App() {
           style={{ minHeight: 500 }}
         >
           {/* Check if this is an auth callback */}
-          {window.location.hash.includes('id_token=') ? (
-            <AuthCallback />
-          ) : /* Show 404 if invalid route */
+          {/* Show 404 if invalid route */
           routeError ? (
             <NotFoundPage 
               identifier={routeError}
               onGoHome={() => {
                 window.location.hash = '';
                 setLinktreeId(null);
-                setViewMode('list');
                 setRouteError(null);
               }}
             />
           ) : linktreeId && nft ? (
             // Show NFT - accessible by anyone (logged in or not)
-            <Flex direction="column" gap="4">
+            // Use mobile view on mobile devices when viewing (not editing)
+            isMobile && !currentAccount ? (
+              <MobileLinktreeView nft={nft} />
+            ) : (
               <LinktreeEditor
                 nft={nft}
                 nftId={linktreeId}
                 isOwner={currentAccount?.address === nft.owner}
                 onUpdate={handleUpdate}
               />
-
-              {currentAccount && (
-                <Button
-                  variant="soft"
-                  onClick={() => {
-                    window.location.hash = '';
-                    setLinktreeId(null);
-                    setViewMode('list');
-                    setRouteError(null);
-                  }}
-                >
-                  ← Back to My Linktrees
-                </Button>
-              )}
-            </Flex>
+            )
           ) : currentAccount ? (
-            // Logged in - show user's linktrees or create
-            <>
-              {viewMode === 'create' ? (
-                <CreateLinktree onSuccess={handleNFTCreated} />
-              ) : (
-                <MyLinktrees 
-                  onSelectLinktree={(id) => {
-                    window.location.hash = id;
-                    setLinktreeId(id);
-                    setViewMode('view');
-                  }}
-                  onCreateNew={() => setViewMode('create')}
-                />
-              )}
-            </>
+            // Logged in with wallet - show user's linktrees
+            <MyLinktrees 
+              onSelectLinktree={(id) => {
+                window.location.hash = id;
+                setLinktreeId(id);
+              }}
+            />
           ) : (
             // Not logged in - show landing page
             <LandingPage />

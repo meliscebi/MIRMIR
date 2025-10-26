@@ -1,3 +1,8 @@
+package: "0x081bb9904e5167f020a3780863b7c6f6dcddba002b8d20e4c98d64e2fb1ade12"
+portal: "https://walrus.devnet.sui.io"
+general:
+  gas_budget: 100000000
+
 contexts:
   testnet:
     system_object: 0x6c2547cbbc38025cf3adac45f63cb0a8d12ecf777cdc75a4971612bf97fdf6af

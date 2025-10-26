@@ -1,7 +1,10 @@
-// Linktree Package IDs
-export const LINKTREE_PACKAGE_ID = "0xb1e96667befa89796a7c4e95068c2f5cc5a941d968d0602622887f11a4e214cc";
-export const SUINS_REGISTRY_ID = "0x82483b1b69f04c46999e0053958d6db6087f610cb06a53183dd9f0c277661846";
-export const USERNAME_REGISTRY_ID = "0xd2710aa8ec70bdc0eb202d733991325197cb405815bccd2f7194cac89b1b1cf1";
+// Linktree Package IDs - Read from environment variables
+export const LINKTREE_PACKAGE_ID = import.meta.env.VITE_LINKTREE_PACKAGE_ID || "0x008723b077e895a1c9e1a52278e7fb26b0414e4a4cd57165408b47fac760a09d";
+export const SUINS_REGISTRY_ID = import.meta.env.VITE_SUINS_REGISTRY_ID || "0x98994430da3806727d2a9e11c8043e26249b8878751624799aab7cb2e4b72cc73";
+export const USERNAME_REGISTRY_ID = import.meta.env.VITE_USERNAME_REGISTRY_ID || "0xf9311511009f92e1912cdddae0b217b63dac967a2cd0edd3d12f8dd627c671c7";
+
+// Legacy Package ID (before wallet address feature)
+export const LEGACY_LINKTREE_PACKAGE_ID = import.meta.env.VITE_LEGACY_LINKTREE_PACKAGE_ID || "0xe621d208920cb992ff4e04271e06476ddce01bacce9a4787783b84e9976a52d9";
 
 // Legacy Counter Package IDs (for reference)
 export const DEVNET_COUNTER_PACKAGE_ID = "0xTODO";

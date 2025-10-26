@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useSignAndExecuteTransaction, useCurrentAccount } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { Button, TextField, Flex, Card, Heading, Text } from '@radix-ui/themes';
 import { LINKTREE_PACKAGE_ID, USERNAME_REGISTRY_ID } from './constants';
@@ -14,6 +14,7 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
   const [username, setUsername] = useState(currentUsername || '');
   const [isBinding, setIsBinding] = useState(false);
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const currentAccount = useCurrentAccount();
 
   const handleBind = async () => {
     if (!username || username.length < 3) {
@@ -24,6 +25,11 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
     // Username validation: only alphanumeric and underscore
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       alert('Username can only contain letters, numbers and underscore');
+      return;
+    }
+
+    if (!currentAccount) {
+      alert('Please connect your wallet first');
       return;
     }
 
@@ -49,6 +55,7 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
           onSuccess: () => {
             alert(`Username "${username}" successfully bound! 🎉\n\nNote: In production you can access via /${username}.\nFor now, use NFT ID.`);
             onSuccess?.();
+            setIsBinding(false);
           },
           onError: (error) => {
             console.error('Username binding error:', error);
@@ -58,23 +65,27 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
             } else {
               alert('Could not bind username: ' + errorMsg);
             }
+            setIsBinding(false);
           },
         }
       );
     } catch (error) {
       console.error('Error binding username:', error);
       alert('An error occurred');
-    } finally {
       setIsBinding(false);
     }
   };
 
   const handleUnbind = async () => {
+    if (!currentAccount) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
     setIsBinding(true);
 
     try {
       const tx = new Transaction();
-      
       tx.moveCall({
         target: `${LINKTREE_PACKAGE_ID}::linktree_nft::unbind_username`,
         arguments: [
@@ -89,73 +100,76 @@ export function BindUsername({ nftId, currentUsername, onSuccess }: BindUsername
         },
         {
           onSuccess: () => {
-            alert('Username binding removed');
             setUsername('');
             onSuccess?.();
+            setIsBinding(false);
           },
-          onError: (error) => {
-            console.error('Username removal error:', error);
-            alert('Could not remove username');
+          onError: (error: any) => {
+            console.error('Unbind error:', error);
+            alert('Failed to unbind: ' + error.message);
+            setIsBinding(false);
           },
         }
       );
     } catch (error) {
-      console.error('Error unbinding username:', error);
-      alert('An error occurred');
-    } finally {
+      console.error('Error:', error);
       setIsBinding(false);
     }
   };
 
   return (
     <Card>
-      <Flex direction="column" gap="3">
-        <Heading size="4">🔗 Short Link (Username)</Heading>
-        <Text size="2" color="gray">
-          Use a short and memorable username instead of NFT ID
-        </Text>
-        
-        {currentUsername && (
-          <Text size="3" weight="bold" style={{ color: 'green' }}>
-            ✅ Current username: <code>{currentUsername}</code>
-            <br />
-            <a href={`/${currentUsername}`} target="_blank" rel="noopener noreferrer">
-              {window.location.origin}/{currentUsername}
-            </a>
-          </Text>
-        )}
+      <Heading size="5" mb="3">
+        🏷️ Username
+      </Heading>
 
-        <TextField.Root
-          placeholder="e.g.: alice"
-          value={username}
-          onChange={(e) => setUsername(e.target.value.toLowerCase())}
-          disabled={isBinding}
-        />
+      <Text size="2" mb="3" color="gray">
+        Bind a custom username to your Linktree for easy sharing (e.g., /yourname)
+      </Text>
+
+      <Flex direction="column" gap="3">
+        <label>
+          <Text as="div" size="2" mb="1" weight="bold">
+            Username
+          </Text>
+          <TextField.Root
+            placeholder="yourname"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            disabled={!!currentUsername || isBinding}
+          />
+          <Text size="1" color="gray" mt="1">
+            Only letters, numbers and underscore allowed. Minimum 3 characters.
+          </Text>
+        </label>
 
         <Flex gap="2">
-          <Button
-            onClick={handleBind}
-            disabled={!username || isBinding}
-            style={{ flex: 1 }}
-          >
-            {isBinding ? 'Binding...' : currentUsername ? 'Update' : 'Bind'}
-          </Button>
-          
-          {currentUsername && (
+          {!currentUsername ? (
             <Button
-              onClick={handleUnbind}
-              disabled={isBinding}
+              onClick={handleBind}
+              disabled={isBinding || !username || !currentAccount}
+              style={{ flex: 1 }}
+            >
+              {isBinding ? '⏳ Binding...' : '🏷️ Bind Username'}
+            </Button>
+          ) : (
+            <Button
               color="red"
               variant="soft"
+              onClick={handleUnbind}
+              disabled={isBinding || !currentAccount}
+              style={{ flex: 1 }}
             >
-              Remove
+              {isBinding ? '⏳ Unbinding...' : '🗑️ Unbind Username'}
             </Button>
           )}
         </Flex>
 
-        <Text size="1" color="gray">
-          💡 Tip: Username must be unique and can only contain letters, numbers and underscore (_)
-        </Text>
+        {currentUsername && (
+          <Text size="2" color="green">
+            ✅ Currently bound to: <strong>/{currentUsername}</strong>
+          </Text>
+        )}
       </Flex>
     </Card>
   );

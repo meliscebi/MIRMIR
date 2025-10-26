@@ -39,6 +39,14 @@ module linktree::linktree_nft {
         icon: String, // emoji or icon name for UI display
     }
 
+    /// WalletAddress structure - represents a crypto wallet address
+    /// Each wallet contains a label, the actual address, and network identifier
+    public struct WalletAddress has store, drop, copy {
+        label: String,      // User-friendly name like "My Sui Wallet"
+        address: String,    // The actual wallet address
+        network: String,    // Network identifier (Sui, Ethereum, Solana, etc.)
+    }
+
     /// Main Linktree NFT structure
     /// Each NFT represents a customizable link page owned by a user
     /// Can be bound to a SuiNS name for easy access via .sui domains
@@ -46,10 +54,12 @@ module linktree::linktree_nft {
         id: UID,
         title: String,
         title_color: String,
+        text_color: String,  // Color for bio and other text
         background_color: String,
         bio: String,
         avatar_url: String,
         links: vector<Link>,
+        wallet_addresses: vector<WalletAddress>, // User's wallet addresses
         owner: address,
         suins_name: Option<String>, // Optional SuiNS domain binding (e.g., "alice.sui")
         username: Option<String>, // Optional username for short URLs (e.g., "alice")
@@ -127,6 +137,7 @@ module linktree::linktree_nft {
     public entry fun create_linktree(
         title: vector<u8>,
         title_color: vector<u8>,
+        text_color: vector<u8>,
         background_color: vector<u8>,
         bio: vector<u8>,
         avatar_url: vector<u8>,
@@ -137,10 +148,12 @@ module linktree::linktree_nft {
             id: object::new(ctx),
             title: string::utf8(title),
             title_color: string::utf8(title_color),
+            text_color: string::utf8(text_color),
             background_color: string::utf8(background_color),
             bio: string::utf8(bio),
             avatar_url: string::utf8(avatar_url),
             links: vector::empty<Link>(),
+            wallet_addresses: vector::empty<WalletAddress>(),
             owner: sender,
             suins_name: option::none(), // No SuiNS name bound initially
             username: option::none(), // No username bound initially
@@ -165,6 +178,7 @@ module linktree::linktree_nft {
         recipient: address,
         title: vector<u8>,
         title_color: vector<u8>,
+        text_color: vector<u8>,
         background_color: vector<u8>,
         bio: vector<u8>,
         avatar_url: vector<u8>,
@@ -174,10 +188,12 @@ module linktree::linktree_nft {
             id: object::new(ctx),
             title: string::utf8(title),
             title_color: string::utf8(title_color),
+            text_color: string::utf8(text_color),
             background_color: string::utf8(background_color),
             bio: string::utf8(bio),
             avatar_url: string::utf8(avatar_url),
             links: vector::empty<Link>(),
+            wallet_addresses: vector::empty<WalletAddress>(),
             owner: recipient,
             suins_name: option::none(),
             username: option::none(),
@@ -211,6 +227,24 @@ module linktree::linktree_nft {
         });
     }
 
+    /// Update the title of the Linktree (sponsored version)
+    /// Sponsor pays for gas but can only update NFTs they own
+    public entry fun update_title_sponsored(
+        nft: &mut LinktreeNFT,
+        new_title: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        // For sponsored transactions, the sponsor must be the owner
+        // This is a gas-free operation where sponsor updates their own NFT
+        assert!(tx_context::sender(ctx) == nft.owner, ENotOwner);
+        nft.title = string::utf8(new_title);
+        
+        event::emit(LinktreeUpdated {
+            nft_id: object::uid_to_address(&nft.id),
+            owner: nft.owner,
+        });
+    }
+
     /// Update the title color (hex color code)
     public entry fun update_title_color(
         nft: &mut LinktreeNFT,
@@ -219,6 +253,21 @@ module linktree::linktree_nft {
     ) {
         assert!(tx_context::sender(ctx) == nft.owner, ENotOwner);
         nft.title_color = string::utf8(new_color);
+        
+        event::emit(LinktreeUpdated {
+            nft_id: object::uid_to_address(&nft.id),
+            owner: nft.owner,
+        });
+    }
+
+    /// Update the text color (hex color code)
+    public entry fun update_text_color(
+        nft: &mut LinktreeNFT,
+        new_color: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        assert!(tx_context::sender(ctx) == nft.owner, ENotOwner);
+        nft.text_color = string::utf8(new_color);
         
         event::emit(LinktreeUpdated {
             nft_id: object::uid_to_address(&nft.id),
@@ -271,6 +320,34 @@ module linktree::linktree_nft {
         });
     }
 
+    /// Batch update all Linktree properties (sponsored version)
+    /// Sponsor pays for gas and updates NFT on behalf of the owner
+    /// This is the key function that enables zkLogin users to edit without gas
+    public entry fun update_linktree_sponsored(
+        nft: &mut LinktreeNFT,
+        new_title: vector<u8>,
+        new_title_color: vector<u8>,
+        new_text_color: vector<u8>,
+        new_background_color: vector<u8>,
+        new_bio: vector<u8>,
+        new_avatar_url: vector<u8>,
+        _ctx: &mut TxContext
+    ) {
+        // No ownership check - sponsor can update any NFT
+        // This allows a trusted sponsor to facilitate updates for users without gas
+        nft.title = string::utf8(new_title);
+        nft.title_color = string::utf8(new_title_color);
+        nft.text_color = string::utf8(new_text_color);
+        nft.background_color = string::utf8(new_background_color);
+        nft.bio = string::utf8(new_bio);
+        nft.avatar_url = string::utf8(new_avatar_url);
+        
+        event::emit(LinktreeUpdated {
+            nft_id: object::uid_to_address(&nft.id),
+            owner: nft.owner,
+        });
+    }
+
     // ============ Link Management ============
 
     /// Add a new link to the Linktree
@@ -305,6 +382,79 @@ module linktree::linktree_nft {
         assert!(tx_context::sender(ctx) == nft.owner, ENotOwner);
         assert!(index < vector::length(&nft.links), EInvalidIndex);
         vector::remove(&mut nft.links, index);
+        
+        event::emit(LinktreeUpdated {
+            nft_id: object::uid_to_address(&nft.id),
+            owner: nft.owner,
+        });
+    }
+
+    /// Update all links in the Linktree (sponsored version)
+    /// Sponsor pays for gas and can update links for any NFT
+    public entry fun update_links_sponsored(
+        nft: &mut LinktreeNFT,
+        titles: vector<vector<u8>>,
+        urls: vector<vector<u8>>,
+        icons: vector<vector<u8>>,
+        _ctx: &mut TxContext
+    ) {
+        // No ownership check - sponsor can update any NFT
+        // Clear existing links
+        nft.links = vector::empty<Link>();
+        
+        // Add new links
+        let len = vector::length(&titles);
+        let mut i = 0;
+        while (i < len) {
+            let new_link = Link {
+                title: string::utf8(*vector::borrow(&titles, i)),
+                url: string::utf8(*vector::borrow(&urls, i)),
+                icon: string::utf8(*vector::borrow(&icons, i)),
+            };
+            vector::push_back(&mut nft.links, new_link);
+            i = i + 1;
+        };
+        
+        event::emit(LinktreeUpdated {
+            nft_id: object::uid_to_address(&nft.id),
+            owner: nft.owner,
+        });
+    }
+
+    // ============ Wallet Address Management ============
+
+    /// Add a new wallet address to the Linktree
+    /// Users can add multiple wallet addresses from different networks
+    public entry fun add_wallet_address(
+        nft: &mut LinktreeNFT,
+        label: vector<u8>,
+        address: vector<u8>,
+        network: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        assert!(tx_context::sender(ctx) == nft.owner, ENotOwner);
+        let new_wallet = WalletAddress {
+            label: string::utf8(label),
+            address: string::utf8(address),
+            network: string::utf8(network),
+        };
+        vector::push_back(&mut nft.wallet_addresses, new_wallet);
+        
+        event::emit(LinktreeUpdated {
+            nft_id: object::uid_to_address(&nft.id),
+            owner: nft.owner,
+        });
+    }
+
+    /// Remove a wallet address by its index position
+    public entry fun remove_wallet_address(
+        nft: &mut LinktreeNFT,
+        index: u64,
+        ctx: &mut TxContext
+    ) {
+        assert!(tx_context::sender(ctx) == nft.owner, ENotOwner);
+        assert!(index < vector::length(&nft.wallet_addresses), EInvalidIndex);
+        vector::remove(&mut nft.wallet_addresses, index);
         
         event::emit(LinktreeUpdated {
             nft_id: object::uid_to_address(&nft.id),
@@ -370,6 +520,32 @@ module linktree::linktree_nft {
     ) {
         assert!(tx_context::sender(ctx) == nft.owner, ENotOwner);
         
+        let username_string = string::utf8(username);
+        
+        // Check if username is already taken
+        assert!(!table::contains(&registry.username_to_nft, username_string), EUsernameAlreadyTaken);
+        
+        // If NFT already has a username, remove the old mapping
+        if (option::is_some(&nft.username)) {
+            let old_username = option::extract(&mut nft.username);
+            table::remove(&mut registry.username_to_nft, old_username);
+        };
+        
+        // Add new username mapping
+        let nft_id = object::uid_to_address(&nft.id);
+        table::add(&mut registry.username_to_nft, username_string, nft_id);
+        option::fill(&mut nft.username, username_string);
+    }
+
+    /// Bind a username to a Linktree NFT (sponsored version)
+    /// Sponsor pays for gas and can bind username for any NFT
+    public entry fun bind_username_sponsored(
+        nft: &mut LinktreeNFT,
+        registry: &mut UsernameRegistry,
+        username: vector<u8>,
+        _ctx: &mut TxContext
+    ) {
+        // No ownership check - sponsor can bind username for any NFT
         let username_string = string::utf8(username);
         
         // Check if username is already taken
